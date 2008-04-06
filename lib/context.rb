@@ -21,17 +21,24 @@ module InContext
       m = module_for_context(name) || Module.new
       m.module_eval &block
       m.instance_methods.each do |meth|
-        if instance_methods.include?(meth)
-          default_context_methods << instance_method(meth)
-          remove_method meth
-        end
+        add_to_default_context meth if instance_methods.include?(meth)
+        contextual_methods << meth
       end
       context_modules[name] = m
       name
     end
 
+    def method_added(meth)
+      add_to_default_context(meth) if contextual_methods.include?(meth.to_s)
+    end
+
     def module_for_context(context)
       context && context_modules[context]
+    end
+
+    def add_to_default_context(meth)
+      default_context_methods << instance_method(meth.to_s)
+      remove_method meth
     end
 
     def context_modules
@@ -40,6 +47,10 @@ module InContext
 
     def default_context_methods
       @default_context_methods ||= []
+    end
+
+    def contextual_methods
+      @contextual_methods ||= []
     end
   end
 

@@ -35,6 +35,13 @@ describe "An object with a method declared in a context" do
     lambda { @object.call }.should raise_error(NoMethodError)
   end
 
+  it "should call the method in context after the instance method is redefined" do
+    @klass.send(:define_method, :call) { :noop }
+    with_context(:callable) { @object.call }
+    @object.should be_called
+    lambda { @object.call.should == :noop }
+  end
+
   describe "when the context is opened again" do
     it "should redefine the method" do
       @klass.in_context(:callable) { def call; :redefined; end }
