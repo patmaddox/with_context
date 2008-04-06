@@ -13,12 +13,12 @@ module InContext
   end
 
   def module_for_context(context)
-    context && self.class.context_modules[context]
+    self.class.module_for_context context
   end
   
   module ClassMethods
     def in_context(name, &block)
-      m = Module.new
+      m = module_for_context(name) || Module.new
       m.module_eval &block
       m.instance_methods.each do |meth|
         if instance_methods.include?(meth)
@@ -28,6 +28,10 @@ module InContext
       end
       context_modules[name] = m
       name
+    end
+
+    def module_for_context(context)
+      context && context_modules[context]
     end
 
     def context_modules

@@ -6,23 +6,18 @@ require "context"
 
 describe "An object with a method declared in a context" do
   include InContext::WithContext
-  
-  class ContextualObject
-    include InContext
-    
-    in_context :callable do
-      def call
-        @called = true
-      end
-    end
 
-    def called?
-      @called
-    end
-  end
-  
   before(:each) do
-    @object = ContextualObject.new
+    @klass = Class.new do
+      include InContext
+      in_context :callable do
+        def call
+          @called = true
+        end
+      end
+      def called?; @called; end
+    end
+    @object = @klass.new
     @object.should_not be_called
   end
   
@@ -39,27 +34,37 @@ describe "An object with a method declared in a context" do
     with_context(:callable) { @object.call }
     lambda { @object.call }.should raise_error(NoMethodError)
   end
+
+  describe "when the context is opened again" do
+    it "should redefine the method" do
+      @klass.in_context(:callable) { def call; :redefined; end }
+      with_context(:callable) { @object.call.should == :redefined }
+    end
+    
+    it "should define other methods" do
+      @klass.in_context(:callable) { def other; :other; end }
+      with_context(:callable) {
+        @object.call
+        @object.other.should == :other
+      }
+      @object.should be_called
+    end
+  end
 end
 
 describe "An object with an instance method, and the same method declared in a context" do
   include InContext::WithContext
   
-  class OverrideInContext
-    include InContext
-
-    def the_context(collector)
-      collector << :instance
-    end
-
-    in_context(:override) do
-      def the_context(collector)
-        collector << :singleton
+  before(:each) do
+    @klass = Class.new do
+      include InContext
+      def the_context(collector); collector << :instance; end
+      in_context(:override) do
+        def the_context(collector); collector << :singleton; end
       end
     end
-  end
 
-  before(:each) do
-    @object = OverrideInContext.new
+    @object = @klass.new
     @collector = []
   end
 
