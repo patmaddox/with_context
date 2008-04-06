@@ -1,10 +1,11 @@
-require "singleton"
-
 module InContext
   def method_missing(method_name, *args, &block)
-    if m = module_for_context(InContext::ContextHolder.instance.current_context)
-      (class << self; self; end).send :include, m
-      return send(method_name, *args, &block)
+    if m = module_for_context(InContext::ContextHolder.current_context)
+      if m.instance_methods.include?(method_name.to_s)
+        (class << self; self; end).send :include, m
+        InContext::ContextHolder.targets_with_contexts[self] = m
+        return send(method_name, *args, &block)
+      end
     end
     super
   end
@@ -32,18 +33,35 @@ module InContext
   
   module WithContext
     def with_context(name, &block)
-      InContext::ContextHolder.instance.with_context name, &block
+      InContext::ContextHolder.with_context name, &block
     end
   end
 
   class ContextHolder
-    include Singleton
-    attr_reader :current_context
+    def self.current_context
+      @current_context
+    end
     
-    def with_context(name, &block)
+    def self.with_context(name, &block)
       @current_context = name
       block.call if block
+      clear_targets_with_contexts
       @current_context = nil
+    end
+
+    def self.clear_targets_with_contexts
+      targets_with_contexts.each do |target, mod|
+        mod.instance_methods.each do |meth|
+          (class << target; self; end).send(:define_method, meth) {
+            raise NoMethodError(meth)
+          }
+        end
+        targets_with_contexts.delete target
+      end
+    end
+
+    def self.targets_with_contexts
+      @targets_with_contexts ||= { }
     end
   end
 end

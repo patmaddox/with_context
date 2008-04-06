@@ -34,4 +34,9 @@ describe "An object with a method declared in a context" do
     with_context(:callable) { @object.call }
     @object.should be_called
   end
+
+  it "should not respond to the method once the context is complete" do
+    with_context(:callable) { @object.call }
+    lambda { @object.call }.should raise_error(NoMethodError)
+  end
 end
