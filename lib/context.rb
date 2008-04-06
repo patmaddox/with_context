@@ -1,5 +1,3 @@
-require "rubygems"
-require "expand_path"
 require __FILE__.expand_path("extensions/unbound_method")
 
 module InContext
