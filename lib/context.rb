@@ -1,3 +1,7 @@
+require "rubygems"
+require "expand_path"
+require __FILE__.expand_path("extensions/unbound_method")
+
 module InContext
   def method_missing(method_name, *args, &block)
     if m = module_for_context(InContext::ContextHolder.current_context)
@@ -18,12 +22,22 @@ module InContext
     def in_context(name, &block)
       m = Module.new
       m.module_eval &block
+      m.instance_methods.each do |meth|
+        if instance_methods.include?(meth)
+          default_context_methods << instance_method(meth)
+          remove_method meth
+        end
+      end
       context_modules[name] = m
       name
     end
 
     def context_modules
       @context_modules ||= { }
+    end
+
+    def default_context_methods
+      @default_context_methods ||= []
     end
   end
 
@@ -52,8 +66,8 @@ module InContext
     def self.clear_targets_with_contexts
       targets_with_contexts.each do |target, mod|
         mod.instance_methods.each do |meth|
-          (class << target; self; end).send(:define_method, meth) {
-            raise NoMethodError(meth)
+          (class << target; self; end).send(:define_method, meth) {|*args|
+            target.class.default_context_methods.find {|m| m.name == meth }.bind(self).call(*args)
           }
         end
         targets_with_contexts.delete target

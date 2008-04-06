@@ -40,3 +40,30 @@ describe "An object with a method declared in a context" do
     lambda { @object.call }.should raise_error(NoMethodError)
   end
 end
+
+describe "An object with an instance method, and the same method declared in a context" do
+  include InContext::WithContext
+  
+  class OverrideInContext
+    include InContext
+
+    def the_context
+      :instance
+    end
+
+    in_context(:override) do
+      def the_context
+        :singleton
+      end
+    end
+  end
+
+  before(:each) do
+    @object = OverrideInContext.new
+  end
+
+  it "should call the overridden method in context, and the original method in default context" do
+    with_context(:override) { @object.the_context.should == :singleton }
+    @object.the_context.should == :instance
+  end
+end
